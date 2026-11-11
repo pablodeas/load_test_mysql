@@ -1,122 +1,124 @@
+🇺🇸 English | [🇧🇷 Português](README.pt-BR.md)
+
 # carga_mysql.py
 
-Simulador de carga para MySQL 8.4, feito para ambientes de **teste e estudo**. Gera operações aleatórias (INSERT, UPDATE, DELETE, UPSERT, SELECT, transações, deadlocks) para você praticar a otimização do banco.
+Load simulator for MySQL 8.4, built for **testing and learning environments**. It generates random operations (INSERT, UPDATE, DELETE, UPSERT, SELECT, transactions, deadlocks) so you can practice database tuning.
 
-> **Não use em produção.** O script cria, altera e apaga dados em massa.
+> **Do not use in production.** The script creates, modifies and deletes data in bulk.
 
-## Requisitos
+## Requirements
 
 - Python 3.8+
-- MySQL 8.4 acessível pela rede ou localmente
-- Biblioteca `mysql-connector-python`
+- MySQL 8.4, reachable over the network or locally
+- `mysql-connector-python` library
 
 ```bash
 sudo dnf install -y python3 python3-pip
 pip3 install mysql-connector-python
 ```
 
-## Usuário no MySQL
+## MySQL user
 
 ```sql
 CREATE USER 'sim'@'%' IDENTIFIED BY 'Sim#123';
 GRANT ALL PRIVILEGES ON sim_db.* TO 'sim'@'%';
-GRANT CREATE, DROP ON *.* TO 'sim'@'%';   -- necessário para criar o database
-GRANT PROCESS ON *.* TO 'sim'@'%';        -- necessário para o relatório de métricas
+GRANT CREATE, DROP ON *.* TO 'sim'@'%';   -- required to create the database
+GRANT PROCESS ON *.* TO 'sim'@'%';        -- required for the metrics report
 ```
 
-## Como usar
+## Usage
 
-**1. Criar o database e as tabelas**
+**1. Create the database and tables**
 
 ```bash
 python3 carga_mysql.py setup --user sim --password 'Sim#123'
 ```
 
-**2. Popular com dados aleatórios** (padrão: 20 mil clientes, 2 mil produtos, 40 mil pedidos)
+**2. Fill it with random data** (default: 20k customers, 2k products, 40k orders)
 
 ```bash
 python3 carga_mysql.py seed --user sim --password 'Sim#123'
 ```
 
-**3. Rodar a simulação**
+**3. Run the simulation**
 
 ```bash
 python3 carga_mysql.py run --user sim --password 'Sim#123' --threads 8 --duration 300 --profile mixed
 ```
 
-Para parar antes do tempo, use `Ctrl+C`. O resumo final é exibido mesmo assim.
+To stop early, press `Ctrl+C`. The final summary is still printed.
 
-## Comandos
+## Commands
 
-| Comando | Função |
+| Command | Purpose |
 |---|---|
-| `setup` | Cria o database e as tabelas (`--reset` apaga e recria) |
-| `seed` | Carga inicial de dados |
-| `run` | Executa a simulação |
-| `drop --yes` | Remove o database |
+| `setup` | Creates the database and tables (`--reset` drops and recreates) |
+| `seed` | Initial data load |
+| `run` | Runs the simulation |
+| `drop --yes` | Removes the database |
 
-## Opções principais
+## Main options
 
-Opções de conexão (valem para todos os comandos):
+Connection options (apply to all commands):
 
-| Opção | Padrão | Variável de ambiente |
+| Option | Default | Environment variable |
 |---|---|---|
 | `--host` | `127.0.0.1` | `MYSQL_HOST` |
 | `--port` | `3306` | `MYSQL_PORT` |
 | `--user` | `root` | `MYSQL_USER` |
-| `--password` | vazio | `MYSQL_PWD` |
+| `--password` | empty | `MYSQL_PWD` |
 | `--database` | `sim_db` | `MYSQL_DB` |
 
-Opções do `seed`: `--customers`, `--products`, `--orders`.
+`seed` options: `--customers`, `--products`, `--orders`.
 
-Opções do `run`:
+`run` options:
 
-| Opção | Padrão | Descrição |
+| Option | Default | Description |
 |---|---|---|
-| `--threads` | `8` | Conexões simultâneas |
-| `--duration` | `300` | Duração em segundos |
-| `--profile` | `mixed` | `mixed`, `read` (mais leitura) ou `write` (mais escrita) |
-| `--report` | `10` | Intervalo do relatório em segundos |
-| `--think` | `0` | Pausa aleatória máxima entre operações (s) |
-| `--ddl` | desligado | Inclui CREATE/ALTER/DROP |
-| `--rand-seed` | aleatório | Semente para repetir a mesma carga |
+| `--threads` | `8` | Concurrent connections |
+| `--duration` | `300` | Duration in seconds |
+| `--profile` | `mixed` | `mixed`, `read` (read-heavy) or `write` (write-heavy) |
+| `--report` | `10` | Report interval in seconds |
+| `--think` | `0` | Maximum random pause between operations (s) |
+| `--ddl` | off | Includes CREATE/ALTER/DROP |
+| `--rand-seed` | random | Seed to replay the same workload |
 
-## O que é simulado
+## What is simulated
 
-- **INSERT:** individual, em lote e transação completa de pedido
-- **UPDATE:** por chave, em massa e em massa sem índice
-- **DELETE:** por chave, em lote e com cascata
-- **UPSERT:** `ON DUPLICATE KEY UPDATE` e `REPLACE INTO`
-- **SELECT:** por PK, JOINs, `LIKE`, agregações, top-N e paginação profunda
-- **Transações especiais:** rollback, lock em linha quente e deadlock provocado
-- **DDL** (opcional): criação de tabela temporária, índice e drop
+- **INSERT:** single, bulk, and a full order transaction
+- **UPDATE:** by key, bulk, and bulk without an index
+- **DELETE:** by key, in batches, and with cascade
+- **UPSERT:** `ON DUPLICATE KEY UPDATE` and `REPLACE INTO`
+- **SELECT:** by PK, JOINs, `LIKE`, aggregations, top-N and deep pagination
+- **Special transactions:** rollback, hot-row locking and forced deadlocks
+- **DDL** (optional): temporary table creation, index and drop
 
-## Saída
+## Output
 
-Durante a execução, a cada intervalo:
+While running, at every interval:
 
 ```
 [  10s] app:   412.3 ops/s err+2 | srv: q/s=...  scan=...  lockwait=...  slow=... | run=3 conn=9
 ```
 
-No final, uma tabela com total de execuções, erros, tempo médio, p95 e máximo por operação, além da contagem de deadlocks e lock timeouts.
+At the end, a table with total executions, errors, average time, p95 and max per operation, plus the count of deadlocks and lock timeouts.
 
-## Roteiro de estudo sugerido
+## Suggested study path
 
-1. Rode uma vez e anote o resultado (ops/s e p95 por operação).
-2. Ative o slow log:
+1. Run it once and record the baseline (ops/s and p95 per operation).
+2. Enable the slow log:
    ```sql
    SET GLOBAL slow_query_log = ON;
    SET GLOBAL long_query_time = 0.1;
    ```
-3. Analise as queries lentas com `EXPLAIN ANALYZE`.
-4. Crie índices e compare. Alguns **estão faltando de propósito**: `customers.city`, `orders.created_at`, `orders.status` e `products.category`.
-5. Ajuste os parâmetros do MySQL para 2 GB de RAM (`innodb_buffer_pool_size`, `max_connections`, `tmp_table_size`), **um por vez**.
-6. Consulte `performance_schema` e `sys` (por exemplo `sys.statements_with_full_table_scans` e `sys.innodb_lock_waits`).
-7. Varie `--threads` (4, 8, 16, 32) para ver onde os 2 vCPUs saturam.
+3. Analyze the slow queries with `EXPLAIN ANALYZE`.
+4. Create indexes and compare. Some are **missing on purpose**: `customers.city`, `orders.created_at`, `orders.status` and `products.category`.
+5. Tune MySQL for 2 GB of RAM (`innodb_buffer_pool_size`, `max_connections`, `tmp_table_size`), **one at a time**.
+6. Check `performance_schema` and `sys` (for example `sys.statements_with_full_table_scans` and `sys.innodb_lock_waits`).
+7. Vary `--threads` (4, 8, 16, 32) to see where the 2 vCPUs saturate.
 
-## Dicas
+## Tips
 
-- Rode o script de **outra máquina**, se possível, para ele não competir por CPU e memória com o MySQL.
-- Use `--rand-seed 42` para repetir a mesma carga e comparar o antes e o depois de cada ajuste.
-- Erros `deadlock` e `lock_timeout` no resumo são esperados: são provocados de propósito.
+- Run the script from **another machine** if possible, so it doesn't compete with MySQL for CPU and memory.
+- Use `--rand-seed 42` to replay the same workload and compare before and after each change.
+- `deadlock` and `lock_timeout` errors in the summary are expected: they are triggered on purpose.
